@@ -97,6 +97,7 @@ CONFIG_KEXEC_ZLIB=y
 CONFIG_KEXEC=y
 # CONFIG_ATAGS_PROC is not set
 CONFIG_KEXEC_HARDBOOT=y
+CONFIG_ARM_CPUIDLE=y
 ## Doraemon Kernel ##
 
 ## Anbox Android Emulator ##
