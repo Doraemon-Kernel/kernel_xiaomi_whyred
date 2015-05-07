@@ -106,3 +106,4 @@ obj-$(CONFIG_PROCESS_RECLAIM)	+= process_reclaim.o
 obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
 obj-y			+= highalloc-test.o
 obj-y			+= fragmentation-test.o
+obj-y			+= fragalloc-test.o
