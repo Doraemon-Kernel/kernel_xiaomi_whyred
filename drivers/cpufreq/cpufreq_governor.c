@@ -337,8 +337,6 @@ static int alloc_common_dbs_info(struct cpufreq_policy *policy,
 		cdata->get_cpu_cdbs(j)->shared = shared;
 
 	mutex_init(&shared->timer_mutex);
-	atomic_set(&shared->skip_work, 0);
-	INIT_WORK(&shared->work, dbs_work_handler);
 	return 0;
 }
 
@@ -553,7 +551,9 @@ static int cpufreq_governor_stop(struct cpufreq_policy *policy,
 
 	gov_cancel_work(shared);
 	shared->policy = NULL;
+	mutex_unlock(&shared->timer_mutex);
 
+	gov_cancel_work(dbs_data, policy);
 	return 0;
 }
 
