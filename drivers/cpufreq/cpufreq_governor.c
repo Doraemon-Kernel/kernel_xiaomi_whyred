@@ -277,12 +277,10 @@ static void dbs_work_handler(struct work_struct *work)
 
 	eval_load = need_load_eval(shared, sampling_rate);
 
-	/*
-	 * Make sure cpufreq_governor_limits() isn't evaluating load in
-	 * parallel.
-	 */
-	mutex_lock(&shared->timer_mutex);
-	delay = dbs_data->cdata->gov_dbs_timer(policy, eval_load);
+	delay = dbs_data->cdata->gov_dbs_timer(policy, modify_all);
+	gov_queue_work(dbs_data, policy, delay, modify_all);
+
+unlock:
 	mutex_unlock(&shared->timer_mutex);
 
 	atomic_dec(&shared->skip_work);
