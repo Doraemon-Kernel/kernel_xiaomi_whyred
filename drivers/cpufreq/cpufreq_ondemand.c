@@ -301,6 +301,7 @@ static void update_sampling_rate(struct dbs_data *dbs_data,
 		if (time_before(next_sampling, appointed_at)) {
 			gov_cancel_work(shared);
 			gov_add_timers(policy, usecs_to_jiffies(new_rate));
+
 		}
 	}
 

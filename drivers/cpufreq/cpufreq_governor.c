@@ -199,29 +199,22 @@ static inline void gov_cancel_timers(struct cpufreq_policy *policy)
 
 void gov_cancel_work(struct cpu_common_dbs_info *shared)
 {
-	/* Tell dbs_timer_handler() to skip queuing up work items. */
-	atomic_inc(&shared->skip_work);
+	unsigned long flags;
 
 	/*
-	 * If dbs_timer_handler() is already running, it may not notice the
-	 * incremented skip_work, so wait for it to complete to prevent its work
-	 * item from being queued up after the cancel_work_sync() below.
+	 * No work will be queued from timer handlers after skip_work is
+	 * updated. And so we can safely cancel the work first and then the
+	 * timers.
 	 */
-	gov_cancel_timers(shared->policy);
-
-	/*
-	 * In case dbs_timer_handler() managed to run and spawn a work item
-	 * before the timers have been canceled, wait for that work item to
-	 * complete and then cancel all of the timers set up by it.  If
-	 * dbs_timer_handler() runs again at that point, it will see the
-	 * positive value of skip_work and won't spawn any more work items.
-	 */
+	spin_lock_irqsave(&shared->timer_lock, flags);
+	shared->skip_work++;
+	spin_unlock_irqrestore(&shared->timer_lock, flags);
 
 	cancel_work_sync(&shared->work);
 
 	gov_cancel_timers(shared->policy);
 
-	atomic_set(&shared->skip_work, 0);
+	shared->skip_work = 0;
 }
 EXPORT_SYMBOL_GPL(gov_cancel_work);
 
@@ -250,10 +243,10 @@ static void dbs_work_handler(struct work_struct *work)
 	struct cpufreq_policy *policy;
 	struct dbs_data *dbs_data;
 	unsigned int sampling_rate, delay;
+	unsigned long flags;
 	bool eval_load;
 
 	policy = shared->policy;
-
 	dbs_data = policy->governor_data;
 
 	/* Kill all timers */
@@ -277,13 +270,17 @@ static void dbs_work_handler(struct work_struct *work)
 
 	eval_load = need_load_eval(shared, sampling_rate);
 
-	delay = dbs_data->cdata->gov_dbs_timer(policy, modify_all);
-	gov_queue_work(dbs_data, policy, delay, modify_all);
-
-unlock:
+	/*
+	 * Make sure cpufreq_governor_limits() isn't evaluating load in
+	 * parallel.
+	 */
+	mutex_lock(&shared->timer_mutex);
+	delay = dbs_data->cdata->gov_dbs_timer(policy, eval_load);
 	mutex_unlock(&shared->timer_mutex);
 
-	atomic_dec(&shared->skip_work);
+	spin_lock_irqsave(&shared->timer_lock, flags);
+	shared->skip_work--;
+	spin_unlock_irqrestore(&shared->timer_lock, flags);
 
 	gov_add_timers(policy, delay);
 }
@@ -292,18 +289,22 @@ static void dbs_timer_handler(unsigned long data)
 {
 	struct cpu_dbs_info *cdbs = (struct cpu_dbs_info *)data;
 	struct cpu_common_dbs_info *shared = cdbs->shared;
+	unsigned long flags;
+
+	spin_lock_irqsave(&shared->timer_lock, flags);
 
 	/*
-	 * Timer handler may not be allowed to queue the work at the moment,
-	 * because:
+	 * Timer handler isn't allowed to queue work at the moment, because:
 	 * - Another timer handler has done that
 	 * - We are stopping the governor
-	 * - Or we are updating the sampling rate of the ondemand governor
+	 * - Or we are updating the sampling rate of ondemand governor
 	 */
-	if (atomic_inc_return(&shared->skip_work) > 1)
-		atomic_dec(&shared->skip_work);
-	else
+	if (!shared->skip_work) {
+		shared->skip_work++;
 		queue_work(system_wq, &shared->work);
+	}
+
+	spin_unlock_irqrestore(&shared->timer_lock, flags);
 }
 
 static void set_sampling_rate(struct dbs_data *dbs_data,
@@ -337,6 +338,8 @@ static int alloc_common_dbs_info(struct cpufreq_policy *policy,
 		cdata->get_cpu_cdbs(j)->shared = shared;
 
 	mutex_init(&shared->timer_mutex);
+	spin_lock_init(&shared->timer_lock);
+	INIT_WORK(&shared->work, dbs_work_handler);
 	return 0;
 }
 
@@ -551,9 +554,7 @@ static int cpufreq_governor_stop(struct cpufreq_policy *policy,
 
 	gov_cancel_work(shared);
 	shared->policy = NULL;
-	mutex_unlock(&shared->timer_mutex);
 
-	gov_cancel_work(dbs_data, policy);
 	return 0;
 }
 
