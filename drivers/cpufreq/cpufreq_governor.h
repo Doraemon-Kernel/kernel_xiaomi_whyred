@@ -232,7 +232,8 @@ struct zz_dbs_tuners {
 /* Common Governor data across policies */
 struct dbs_data;
 struct common_dbs_data {
-	/* Common across governors */
+	struct cpufreq_governor gov;
+
 	#define GOV_ONDEMAND		0
 	#define GOV_CONSERVATIVE	1
 	#define GOV_ZZMOOVE		2
