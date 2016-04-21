@@ -2847,9 +2847,6 @@ begin_fwd:
 		if (sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))
 			continue;
 
-		if (tcp_small_queue_check(sk, skb, 1))
-			return;
-
 		if (tcp_retransmit_skb(sk, skb, segs))
 			return;
 
