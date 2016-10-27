@@ -451,7 +451,7 @@ void log_suspend_abort_reason(const char *fmt, ...)
 	vsnprintf(abort_reason, MAX_SUSPEND_ABORT_LEN, fmt, args);
 	va_end(args);
 
-	spin_unlock(&resume_reason_lock);
+	spin_unlock_irqrestore(&resume_reason_lock, flags);
 }
 
 static bool match_node(struct wakeup_irq_node *n, void *_p)
@@ -463,9 +463,10 @@ static bool match_node(struct wakeup_irq_node *n, void *_p)
 int check_wakeup_reason(int irq)
 {
 	bool found;
-	spin_lock(&resume_reason_lock);
+	unsigned long flags;
+	spin_lock_irqsave(&resume_reason_lock, flags);
 	found = !walk_irq_node_tree(base_irq_nodes, match_node, &irq);
-	spin_unlock(&resume_reason_lock);
+	spin_unlock_irqrestore(&resume_reason_lock, flags);
 	return found;
 }
 
@@ -548,7 +549,7 @@ static int wakeup_reason_pm_event(struct notifier_block *notifier,
 	unsigned long flags;
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
-		spin_lock(&resume_reason_lock);
+		spin_lock_irqsave(&resume_reason_lock, flags);
 		suspend_abort = false;
 		spin_unlock_irqrestore(&resume_reason_lock, flags);
 		/* monotonic time since boot */
