@@ -36,6 +36,8 @@
 #include <linux/vmalloc.h>
 #include <linux/bug.h>
 
+#include <asm/unaligned.h>
+
 #include "kasan.h"
 #include "../slab.h"
 
@@ -137,7 +139,7 @@ static __always_inline bool memory_is_poisoned_2(unsigned long addr)
 {
 	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
 
-	if (unlikely(*shadow_addr)) {
+	if (unlikely(get_unaligned(shadow_addr))) {
 		if (memory_is_poisoned_1(addr + 1))
 			return true;
 
@@ -159,7 +161,7 @@ static __always_inline bool memory_is_poisoned_4(unsigned long addr)
 {
 	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
 
-	if (unlikely(*shadow_addr)) {
+	if (unlikely(get_unaligned(shadow_addr))) {
 		if (memory_is_poisoned_1(addr + 3))
 			return true;
 
@@ -181,7 +183,7 @@ static __always_inline bool memory_is_poisoned_8(unsigned long addr)
 {
 	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
 
-	if (unlikely(*shadow_addr)) {
+	if (unlikely(get_unaligned(shadow_addr))) {
 		if (memory_is_poisoned_1(addr + 7))
 			return true;
 
@@ -203,8 +205,8 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
 {
 	u32 *shadow_addr = (u32 *)kasan_mem_to_shadow((void *)addr);
 
-	if (unlikely(*shadow_addr)) {
-		u16 shadow_first_bytes = *(u16 *)shadow_addr;
+	if (unlikely(get_unaligned(shadow_addr))) {
+		u16 shadow_first_bytes = get_unaligned((u16 *)shadow_addr);
 
 		if (unlikely(shadow_first_bytes))
 			return true;
