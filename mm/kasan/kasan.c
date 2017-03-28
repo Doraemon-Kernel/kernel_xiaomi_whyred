@@ -346,6 +346,7 @@ void kasan_check_write(const void *p, unsigned int size)
 }
 EXPORT_SYMBOL(kasan_check_write);
 
+#ifndef CONFIG_ARM
 #undef memset
 void *memset(void *addr, int c, size_t len)
 {
@@ -371,14 +372,41 @@ void *memcpy(void *dest, const void *src, size_t len)
 
 	return __memcpy(dest, src, len);
 }
+#endif
 
 #ifdef CONFIG_ARM
-#undef memchr
-void *memchr(const void *p, int c, size_t len)
+#undef __memset
+void *__memset(void *addr, int c, size_t len)
+{
+	__asan_storeN((unsigned long)addr, len);
+
+	return ____memset(addr, c, len);
+}
+
+#undef __memmove
+void *__memmove(void *dest, const void *src, size_t len)
+{
+	__asan_loadN((unsigned long)src, len);
+	__asan_storeN((unsigned long)dest, len);
+
+	return ____memmove(dest, src, len);
+}
+
+#undef __memcpy
+void *__memcpy(void *dest, const void *src, size_t len)
+{
+	__asan_loadN((unsigned long)src, len);
+	__asan_storeN((unsigned long)dest, len);
+
+	return ____memcpy(dest, src, len);
+}
+
+#undef __memchr
+void *__memchr(const void *p, int c, size_t len)
 {
 	__asan_loadN((unsigned long)p, len);
 
-	return __memchr(p, c, len);
+	return ____memchr(p, c, len);
 }
 #endif
 
