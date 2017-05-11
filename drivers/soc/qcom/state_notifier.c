@@ -102,16 +102,6 @@ void state_resume(void)
 		queue_work(susp_wq, &resume_work);
 }
 
-void state_boost(void)
-{
-	if (delayed_work_pending(&suspend_work))
-		cancel_delayed_work_sync(&suspend_work);
-	suspend_in_progress = false;
-
-	if (state_suspended)
-		queue_work(susp_wq, &boost_work);
-}
-
 static int __init state_notifier_init(void)
 {
 	susp_wq =
