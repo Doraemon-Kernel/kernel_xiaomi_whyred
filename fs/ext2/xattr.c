@@ -490,8 +490,8 @@ bad_block:		ext2_error(sb, "ext2_xattr_set",
 			 * This must happen under buffer lock for
 			 * ext2_xattr_set2() to reliably detect modified block
 			 */
-			mb_cache_entry_delete_block(EXT2_SB(sb)->s_mb_cache,
-						    hash, bh->b_blocknr);
+			mb_cache_entry_delete(EXT2_SB(sb)->s_mb_cache, hash,
+					      bh->b_blocknr);
 
 			/* keep the buffer locked while modifying it. */
 		} else {
@@ -718,8 +718,8 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 			 * This must happen under buffer lock for
 			 * ext2_xattr_set2() to reliably detect freed block
 			 */
-			mb_cache_entry_delete_block(ext2_mb_cache,
-						    hash, old_bh->b_blocknr);
+			mb_cache_entry_delete(ext2_mb_cache, hash,
+					      old_bh->b_blocknr);
 			/* Free the old block. */
 			ea_bdebug(old_bh, "freeing");
 			ext2_free_blocks(inode, old_bh->b_blocknr, 1);
@@ -783,8 +783,8 @@ ext2_xattr_delete_inode(struct inode *inode)
 		 * This must happen under buffer lock for ext2_xattr_set2() to
 		 * reliably detect freed block
 		 */
-		mb_cache_entry_delete_block(EXT2_SB(inode->i_sb)->s_mb_cache,
-					    hash, bh->b_blocknr);
+		mb_cache_entry_delete(EXT2_SB(inode->i_sb)->s_mb_cache, hash,
+				      bh->b_blocknr);
 		ext2_free_blocks(inode, EXT2_I(inode)->i_file_acl, 1);
 		get_bh(bh);
 		bforget(bh);
