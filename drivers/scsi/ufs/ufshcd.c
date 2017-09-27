@@ -9372,7 +9372,7 @@ static inline ssize_t ufshcd_pm_lvl_store(struct device *dev,
 	return count;
 }
 
-static ssize_t ufshcd_rpm_lvl_show(struct device *dev,
+static ssize_t rpm_lvl_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
@@ -9401,24 +9401,13 @@ static ssize_t ufshcd_rpm_lvl_show(struct device *dev,
 	return curr_len;
 }
 
-static ssize_t ufshcd_rpm_lvl_store(struct device *dev,
+static ssize_t rpm_lvl_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	return ufshcd_pm_lvl_store(dev, attr, buf, count, true);
 }
 
-static void ufshcd_add_rpm_lvl_sysfs_nodes(struct ufs_hba *hba)
-{
-	hba->rpm_lvl_attr.show = ufshcd_rpm_lvl_show;
-	hba->rpm_lvl_attr.store = ufshcd_rpm_lvl_store;
-	sysfs_attr_init(&hba->rpm_lvl_attr.attr);
-	hba->rpm_lvl_attr.attr.name = "rpm_lvl";
-	hba->rpm_lvl_attr.attr.mode = S_IRUGO | S_IWUSR;
-	if (device_create_file(hba->dev, &hba->rpm_lvl_attr))
-		dev_err(hba->dev, "Failed to create sysfs for rpm_lvl\n");
-}
-
-static ssize_t ufshcd_spm_lvl_show(struct device *dev,
+static ssize_t spm_lvl_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
@@ -9447,116 +9436,63 @@ static ssize_t ufshcd_spm_lvl_show(struct device *dev,
 	return curr_len;
 }
 
-static ssize_t ufshcd_spm_lvl_store(struct device *dev,
+static ssize_t spm_lvl_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	return ufshcd_pm_lvl_store(dev, attr, buf, count, false);
 }
 
-static void ufshcd_add_spm_lvl_sysfs_nodes(struct ufs_hba *hba)
+/*
+ * Values permitted 0, 1, 2.
+ * 0 -> Disable IO latency histograms (default)
+ * 1 -> Enable IO latency histograms
+ * 2 -> Zero out IO latency histograms
+ */
+static ssize_t
+latency_hist_store(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
 {
-	hba->spm_lvl_attr.show = ufshcd_spm_lvl_show;
-	hba->spm_lvl_attr.store = ufshcd_spm_lvl_store;
-	sysfs_attr_init(&hba->spm_lvl_attr.attr);
-	hba->spm_lvl_attr.attr.name = "spm_lvl";
-	hba->spm_lvl_attr.attr.mode = S_IRUGO | S_IWUSR;
-	if (device_create_file(hba->dev, &hba->spm_lvl_attr))
-		dev_err(hba->dev, "Failed to create sysfs for spm_lvl\n");
-}
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	long value;
 
-static ssize_t ufs_sysfs_read_desc_param(struct ufs_hba *hba,
-				  enum desc_idn desc_id,
-				  u8 desc_index,
-				  u8 param_offset,
-				  u8 *sysfs_buf,
-				  u8 param_size)
-{
-	u8 desc_buf[8] = {0};
-	int ret;
-
-	if (param_size > 8)
+	if (kstrtol(buf, 0, &value))
 		return -EINVAL;
-
-	pm_runtime_get_sync(hba->dev);
-	ret = ufshcd_read_desc_param(hba, desc_id, desc_index,
-				param_offset, desc_buf, param_size);
-	pm_runtime_put_sync(hba->dev);
-
-	if (ret)
-		return -EINVAL;
-	switch (param_size) {
-	case 1:
-		ret = snprintf(sysfs_buf, PAGE_SIZE, "0x%02X\n", *desc_buf);
-		break;
-	case 2:
-		ret = snprintf(sysfs_buf, PAGE_SIZE, "0x%04X\n",
-			get_unaligned_be16(desc_buf));
-		break;
-	case 4:
-		ret = snprintf(sysfs_buf, PAGE_SIZE, "0x%08X\n",
-			get_unaligned_be32(desc_buf));
-		break;
-	case 8:
-		ret = snprintf(sysfs_buf, PAGE_SIZE, "0x%016llX\n",
-			get_unaligned_be64(desc_buf));
-		break;
-	}
-
-	return ret;
+	if (value == BLK_IO_LAT_HIST_ZERO)
+		blk_zero_latency_hist(&hba->io_lat_s);
+	else if (value == BLK_IO_LAT_HIST_ENABLE ||
+		 value == BLK_IO_LAT_HIST_DISABLE)
+		hba->latency_hist_enabled = value;
+	return count;
 }
 
-
-#define UFS_DESC_PARAM(_name, _puname, _duname, _size)			\
-	static ssize_t _name##_show(struct device *dev,			\
-		struct device_attribute *attr, char *buf)			\
-{									\
-	struct ufs_hba *hba = dev_get_drvdata(dev); 		\
-	return ufs_sysfs_read_desc_param(hba, QUERY_DESC_IDN_##_duname, \
-		0, _duname##_DESC_PARAM##_puname, buf, _size);		\
-}									\
-static DEVICE_ATTR_RO(_name)
-
-#define UFS_HEALTH_DESC_PARAM(_name, _uname, _size)			\
-		UFS_DESC_PARAM(_name, _uname, HEALTH, _size)
-
-UFS_HEALTH_DESC_PARAM(eol_info, _EOL_INFO, 1);
-UFS_HEALTH_DESC_PARAM(life_time_estimation_a, _LIFE_TIME_EST_A, 1);
-UFS_HEALTH_DESC_PARAM(life_time_estimation_b, _LIFE_TIME_EST_B, 1);
-
-static struct attribute *ufs_sysfs_health_descriptor[] = {
-	&dev_attr_eol_info.attr,
-	&dev_attr_life_time_estimation_a.attr,
-	&dev_attr_life_time_estimation_b.attr,
-	NULL,
-};
-
-static const struct attribute_group ufs_sysfs_health_descriptor_group = {
-	.name = "health_descriptor",
-	.attrs = ufs_sysfs_health_descriptor,
-};
-
-static const struct attribute_group *ufs_sysfs_groups[] = {
-	&ufs_sysfs_health_descriptor_group,
-	NULL,
-};
-
-
-static void ufshcd_add_desc_sysfs_nodes(struct device *dev)
+ssize_t
+latency_hist_show(struct device *dev, struct device_attribute *attr,
+		  char *buf)
 {
-	int ret;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	ret = sysfs_create_groups(&dev->kobj, ufs_sysfs_groups);
-	if (ret)
-		dev_err(dev,
-			"%s: sysfs groups creation failed (err = %d)\n",
-			__func__, ret);
+	return blk_latency_hist_show(&hba->io_lat_s, buf);
 }
+
+static DEVICE_ATTR_RW(rpm_lvl);
+static DEVICE_ATTR_RW(spm_lvl);
+static DEVICE_ATTR_RW(latency_hist);
+
+static struct attribute *ufshcd_attrs[] = {
+	&dev_attr_rpm_lvl.attr,
+	&dev_attr_spm_lvl.attr,
+	&dev_attr_latency_hist.attr,
+	NULL
+};
+
+static const struct attribute_group ufshcd_attr_group = {
+	.attrs = ufshcd_attrs,
+};
 
 static inline void ufshcd_add_sysfs_nodes(struct ufs_hba *hba)
 {
-	ufshcd_add_rpm_lvl_sysfs_nodes(hba);
-	ufshcd_add_spm_lvl_sysfs_nodes(hba);
-	ufshcd_add_desc_sysfs_nodes(hba->dev);
+	if (sysfs_create_group(&hba->dev->kobj, &ufshcd_attr_group))
+		dev_err(hba->dev, "Failed to create sysfs group\n");
 }
 
 static void ufshcd_shutdown_clkscaling(struct ufs_hba *hba)
@@ -9634,61 +9570,6 @@ out:
 }
 EXPORT_SYMBOL(ufshcd_shutdown);
 
-/*
- * Values permitted 0, 1, 2.
- * 0 -> Disable IO latency histograms (default)
- * 1 -> Enable IO latency histograms
- * 2 -> Zero out IO latency histograms
- */
-static ssize_t
-latency_hist_store(struct device *dev, struct device_attribute *attr,
-		   const char *buf, size_t count)
-{
-	struct ufs_hba *hba = dev_get_drvdata(dev);
-	long value;
-
-	if (kstrtol(buf, 0, &value))
-		return -EINVAL;
-	if (value == BLK_IO_LAT_HIST_ZERO) {
-		memset(&hba->io_lat_read, 0, sizeof(hba->io_lat_read));
-		memset(&hba->io_lat_write, 0, sizeof(hba->io_lat_write));
-	} else if (value == BLK_IO_LAT_HIST_ENABLE ||
-		 value == BLK_IO_LAT_HIST_DISABLE)
-		hba->latency_hist_enabled = value;
-	return count;
-}
-
-ssize_t
-latency_hist_show(struct device *dev, struct device_attribute *attr,
-		  char *buf)
-{
-	struct ufs_hba *hba = dev_get_drvdata(dev);
-	size_t written_bytes;
-
-	written_bytes = blk_latency_hist_show("Read", &hba->io_lat_read,
-			buf, PAGE_SIZE);
-	written_bytes += blk_latency_hist_show("Write", &hba->io_lat_write,
-			buf + written_bytes, PAGE_SIZE - written_bytes);
-
-	return written_bytes;
-}
-
-static DEVICE_ATTR(latency_hist, S_IRUGO | S_IWUSR,
-		   latency_hist_show, latency_hist_store);
-
-static void
-ufshcd_init_latency_hist(struct ufs_hba *hba)
-{
-	if (device_create_file(hba->dev, &dev_attr_latency_hist))
-		dev_err(hba->dev, "Failed to create latency_hist sysfs entry\n");
-}
-
-static void
-ufshcd_exit_latency_hist(struct ufs_hba *hba)
-{
-	device_create_file(hba->dev, &dev_attr_latency_hist);
-}
-
 /**
  * ufshcd_remove - de-allocate SCSI host and host memory space
  *		data structure memory
@@ -9705,7 +9586,6 @@ void ufshcd_remove(struct ufs_hba *hba)
 	ufshcd_exit_hibern8_on_idle(hba);
 	if (ufshcd_is_clkscaling_supported(hba)) {
 		device_remove_file(hba->dev, &hba->clk_scaling.enable_attr);
-		ufshcd_exit_latency_hist(hba);
 		devfreq_remove_device(hba->devfreq);
 	}
 	ufshcd_hba_exit(hba);
@@ -10417,8 +10297,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	/* Hold auto suspend until async scan completes */
 	pm_runtime_get_sync(dev);
 
-	ufshcd_init_latency_hist(hba);
-
 	/*
 	 * We are assuming that device wasn't put in sleep/power-down
 	 * state exclusively during the boot stage before kernel.
@@ -10441,7 +10319,6 @@ out_remove_scsi_host:
 	scsi_remove_host(hba->host);
 exit_gating:
 	ufshcd_exit_clk_gating(hba);
-	ufshcd_exit_latency_hist(hba);
 out_disable:
 	hba->is_irq_enabled = false;
 	ufshcd_hba_exit(hba);
