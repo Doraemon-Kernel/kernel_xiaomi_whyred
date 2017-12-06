@@ -27,10 +27,13 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/cpu_cooling.h>
 #include <trace/events/power.h>
 
 static DEFINE_MUTEX(l2bw_lock);
 
+static struct thermal_cooling_device *cdev[NR_CPUS];
 static struct clk *cpu_clk[NR_CPUS];
 static struct clk *l2_clk;
 static DEFINE_PER_CPU(struct cpufreq_frequency_table *, freq_table);
@@ -309,6 +312,52 @@ static struct freq_attr *msm_freq_attr[] = {
 	NULL,
 };
 
+static void msm_cpufreq_ready(struct cpufreq_policy *policy)
+{
+	struct device_node *np, *lmh_node;
+	unsigned int cpu = 0;
+
+	if (cdev[policy->cpu])
+		return;
+
+	np = of_cpu_device_node_get(policy->cpu);
+	if (WARN_ON(!np))
+		return;
+
+	/*
+	 * For now, just loading the cooling device;
+	 * thermal DT code takes care of matching them.
+	 */
+	if (of_find_property(np, "#cooling-cells", NULL)) {
+		lmh_node = of_parse_phandle(np, "qcom,lmh-dcvs", 0);
+		if (lmh_node) {
+			of_node_put(lmh_node);
+			goto ready_exit;
+		}
+
+		for_each_cpu(cpu, policy->related_cpus) {
+			cpumask_t cpu_mask  = CPU_MASK_NONE;
+
+			of_node_put(np);
+			np = of_cpu_device_node_get(cpu);
+			if (WARN_ON(!np))
+				return;
+
+			cpumask_set_cpu(cpu, &cpu_mask);
+			cdev[cpu] = of_cpufreq_cooling_register(np, &cpu_mask);
+			if (IS_ERR(cdev[cpu])) {
+				pr_err(
+				"running cpufreq for CPU%d without cooling dev: %ld\n",
+				cpu, PTR_ERR(cdev[cpu]));
+				cdev[cpu] = NULL;
+			}
+		}
+	}
+
+ready_exit:
+	of_node_put(np);
+}
+
 static struct cpufreq_driver msm_cpufreq_driver = {
 	/* lps calculations are handled here. */
 	.flags		= CPUFREQ_STICKY | CPUFREQ_CONST_LOOPS,
@@ -317,7 +366,27 @@ static struct cpufreq_driver msm_cpufreq_driver = {
 	.target		= msm_cpufreq_target,
 	.get		= msm_cpufreq_get_freq,
 	.name		= "msm",
-	.attr		= msm_freq_attr,
+	.attr		 = msm_freq_attr,
+	.ready		= msm_cpufreq_ready,
+};
+static unsigned long max_freq;
+static int cpumaxfreq_proc_show(struct seq_file *m, void *v)
+{
+	unsigned long freq = 0;
+	freq = (max_freq/10000);
+	seq_printf(m, "%lu.%02lu", freq/100, freq%100);
+	return 0;
+}
+
+static int cpumaxfreq_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, cpumaxfreq_proc_show, NULL);
+}
+static const struct file_operations cpumaxfreq_proc_fops = {
+	.open		= cpumaxfreq_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
