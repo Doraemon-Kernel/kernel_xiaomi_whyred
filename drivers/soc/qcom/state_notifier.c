@@ -18,6 +18,18 @@
 #define DEFAULT_SUSPEND_DEFER_TIME 	1
 #define STATE_NOTIFIER			"state_notifier"
 
+/*
+ * debug = 1 will print all
+ */
+static unsigned int debug;
+
+#define dprintk(msg...)		\
+do {				\
+	if (debug)		\
+		pr_info(msg);	\
+} while (0)
+
+static bool enabled = true;
 static unsigned int suspend_defer_time = DEFAULT_SUSPEND_DEFER_TIME;
 module_param_named(suspend_defer_time, suspend_defer_time, uint, 0664);
 static struct delayed_work suspend_work;
