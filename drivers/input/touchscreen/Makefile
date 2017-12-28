@@ -111,3 +111,8 @@ obj-$(CONFIG_KERNEL_CUSTOM_E7S)	+= lct_ctp_selftest.o
 obj-$(CONFIG_KERNEL_CUSTOM_E7S)	+= lct_ctp_upgrade.o
 obj-$(CONFIG_KERNEL_CUSTOM_E7S)	+= lct_if_ctp_upgrade.o
 obj-$(CONFIG_KERNEL_CUSTOM_E7S)	+= lct_tp_gesture.o
+
+# Makefile for trace2sleep.
+#
+# Add this line within the makefile of the touchscreen folder / driver folder (same as doubletap2wake location)
+obj-$(CONFIG_TOUCHSCREEN_TRACE2WAKE)	+= trace2wake.o
