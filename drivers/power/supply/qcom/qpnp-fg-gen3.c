@@ -2632,7 +2632,8 @@ static void fg_ttf_update(struct fg_chip *chip)
 	chip->ttf.last_ttf = 0;
 	chip->ttf.last_ms = 0;
 	mutex_unlock(&chip->ttf.lock);
-	schedule_delayed_work(&chip->ttf_work, msecs_to_jiffies(delay_ms));
+	queue_delayed_work(system_power_efficient_wq,
+		&chip->ttf_work, msecs_to_jiffies(delay_ms));
 }
 
 static void restore_cycle_counter(struct fg_chip *chip)
@@ -3177,7 +3178,7 @@ static void sram_dump_work(struct work_struct *work)
 resched:
 	queue_delayed_work(system_power_efficient_wq,
 		&chip->sram_dump_work,
-		msecs_to_jiffies(fg_sram_dump_period_ms));
+			msecs_to_jiffies(fg_sram_dump_period_ms));
 }
 
 static int fg_sram_dump_sysfs(const char *val, const struct kernel_param *kp)
@@ -3206,7 +3207,7 @@ static int fg_sram_dump_sysfs(const char *val, const struct kernel_param *kp)
 	if (fg_sram_dump)
 		queue_delayed_work(system_power_efficient_wq,
 			&chip->sram_dump_work,
-			msecs_to_jiffies(fg_sram_dump_period_ms));
+				msecs_to_jiffies(fg_sram_dump_period_ms));
 	else
 		cancel_delayed_work_sync(&chip->sram_dump_work);
 
@@ -3773,8 +3774,8 @@ static void ttf_work(struct work_struct *work)
 		/* keep the wake lock and prime the IBATT and VBATT buffers */
 		if (ttf < 0) {
 			/* delay for one FG cycle */
-			schedule_delayed_work(&chip->ttf_work,
-							msecs_to_jiffies(1500));
+			queue_delayed_work(system_power_efficient_wq,
+				&chip->ttf_work, msecs_to_jiffies(1500));
 			mutex_unlock(&chip->ttf.lock);
 			return;
 		}
@@ -3790,7 +3791,8 @@ static void ttf_work(struct work_struct *work)
 	}
 
 	/* recurse every 10 seconds */
-	schedule_delayed_work(&chip->ttf_work, msecs_to_jiffies(10000));
+	queue_delayed_work(system_power_efficient_wq,
+		&chip->ttf_work, msecs_to_jiffies(10000));
 end_work:
 	vote(chip->awake_votable, TTF_PRIMING, false, 0);
 	mutex_unlock(&chip->ttf.lock);
@@ -5571,7 +5573,7 @@ static int fg_gen3_resume(struct device *dev)
 	if (fg_sram_dump)
 		queue_delayed_work(system_power_efficient_wq,
 			&chip->sram_dump_work,
-			msecs_to_jiffies(fg_sram_dump_period_ms));
+				msecs_to_jiffies(fg_sram_dump_period_ms));
 
 	if (!work_pending(&chip->status_change_work)) {
 		pm_stay_awake(chip->dev);
