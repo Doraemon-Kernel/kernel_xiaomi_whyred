@@ -92,6 +92,13 @@ static void _boost_work(struct work_struct *work)
 	state_notifier_call_chain(STATE_NOTIFIER_BOOST, NULL);
 }
 
+static void _boost_work(struct work_struct *work)
+{
+	state_suspended = false;
+	state_notifier_call_chain(STATE_NOTIFIER_BOOST, NULL);
+	dprintk("%s: boosting before resume.\n", STATE_NOTIFIER);
+}
+
 void state_suspend(void)
 {
 	dprintk("%s: suspend called.\n", STATE_NOTIFIER);
@@ -113,6 +120,17 @@ void state_resume(void)
 
 	if (state_suspended)
 		queue_work(susp_wq, &resume_work);
+}
+
+void state_boost(void)
+{
+	dprintk("%s: resume called.\n", STATE_NOTIFIER);
+	if (delayed_work_pending(&suspend_work))
+		cancel_delayed_work_sync(&suspend_work);
+	suspend_in_progress = false;
+
+	if (state_suspended)
+		queue_work(susp_wq, &boost_work);
 }
 
 static int __init state_notifier_init(void)
