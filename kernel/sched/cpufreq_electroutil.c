@@ -709,7 +709,7 @@ static void eugov_policy_free(struct eugov_policy *eg_policy)
 static int eugov_kthread_create(struct eugov_policy *eg_policy)
 {
 	struct task_struct *thread;
-	struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO / 2 };
+	struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO - 1 };
 	struct cpufreq_policy *policy = eg_policy->policy;
 	int ret;
 
