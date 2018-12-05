@@ -59,6 +59,7 @@
 #include <linux/delay.h>
 #include <linux/cpuset.h>
 #include <linux/atomic.h>
+#include <linux/cpu_boost.h>
 
 /*
  * pidlists linger the following amount before being destroyed.  The goal
@@ -2773,6 +2774,11 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	ret = cgroup_procs_write_permission(tsk, cgrp, of);
 	if (!ret)
 		ret = cgroup_attach_task(cgrp, tsk, threadgroup);
+
+	/* Boost CPU to the max for 500 ms when any app becomes a top app */
+	if (!ret && !memcmp(cgrp->kn->name, "top-app", sizeof("top-app"))) {
+		input_boost_max_kick(500);
+	}
 
 	put_task_struct(tsk);
 	goto out_unlock_threadgroup;
