@@ -211,39 +211,6 @@ static unsigned int get_next_freq(struct dugov_cpu *sg_cpu, unsigned long util,
 				policy->cpuinfo.max_freq : policy->cur;
 	unsigned int capacity_factor, silver_max_freq, gold_max_freq;
 
-	if(state_suspended) {
-		capacity_factor = sg_policy->tunables->suspend_capacity_factor;
-		silver_max_freq = sg_policy->tunables->silver_suspend_max_freq;
-		gold_max_freq = sg_policy->tunables->gold_suspend_max_freq;
-		max = max * (capacity_factor + 1) / capacity_factor;
-	}
-
-	switch(policy->cpu){
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-		freq = (freq + (freq >> tunables->bit_shift1)) * util / max;
-		if(state_suspended &&  silver_max_freq > 0 && silver_max_freq < freq)
-			return silver_max_freq;
-		break;
-	case 4:
-	case 5:
-		freq = (freq - (freq >> tunables->bit_shift2)) * util / max;
-		if(state_suspended && gold_max_freq > 0 && gold_max_freq < freq)
-			return gold_max_freq;
-		break;
-	case 6:
-	case 7:
-		if(state_suspended)
-			return policy->min;
-		else
-			freq = freq * util / max;
-		break;
-	default:
-		BUG();
-	}
-
 	if (freq == sg_cpu->cached_raw_freq && sg_policy->next_freq != UINT_MAX)
 		return sg_policy->next_freq;
 	sg_cpu->cached_raw_freq = freq;
