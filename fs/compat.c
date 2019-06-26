@@ -54,7 +54,8 @@
 #include <asm/ioctls.h>
 #include "internal.h"
 
-int compat_log = 0;
+int compat_log;
+
 int compat_printk(const char *fmt, ...)
 {
 	va_list ap;
