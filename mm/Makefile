@@ -107,3 +107,5 @@ obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
 obj-y			+= highalloc-test.o
 obj-y			+= fragmentation-test.o
 obj-y			+= fragalloc-test.o
+
+CFLAGS_kmemleak.o += -DCONFIG_DEBUG_FS
