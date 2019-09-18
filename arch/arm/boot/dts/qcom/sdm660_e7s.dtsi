@@ -303,12 +303,20 @@
 			compatible = "android,firmware";
 			fstab {
 				compatible = "android,fstab";
+				system {
+					compatible = "android,system";
+					dev = "/dev/block/platform/soc/c0c4000.sdhci/by-name/system";
+					type = "ext4";
+					mnt_flags = "ro,barrier=1,discard";
+					fsmgr_flags = "wait,verify";
+					status = "ok";
+				};
 				vendor {
 					compatible = "android,vendor";
 					dev = "/dev/block/platform/soc/c0c4000.sdhci/by-name/vendor";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,discard";
-					fsmgr_flags = "wait,slotselect,verify";
+					fsmgr_flags = "wait,verify";
 					status = "ok";
 				};
 			};
@@ -2232,7 +2240,7 @@
 		qcom,qsee-ce-hw-instance = <0>;
 		qcom,disk-encrypt-pipe-pair = <2>;
 		qcom,support-fde;
-		qcom,fde-key-size;
+		/*qcom,fde-key-size;*/
 		qcom,no-clock-support;
 		qcom,msm-bus,name = "qseecom-noc";
 		qcom,msm-bus,num-cases = <4>;
@@ -2549,7 +2557,7 @@
 
 #include "sdm660-ion.dtsi"
 #include "sdm660-bus.dtsi"
-#include "msm-pm660.dtsi"
+#include "msm-pm660_e7s.dtsi"
 #include "msm-pm660l.dtsi"
 #include "msm-pm660-rpm-regulator.dtsi"
 #include "msm-pm660l-rpm-regulator.dtsi"
@@ -2647,7 +2655,7 @@
 
 #include "msm-arm-smmu-660.dtsi"
 #include "msm-arm-smmu-impl-defs-660.dtsi"
-#include "sdm660-common.dtsi"
+#include "sdm660-common_e7s.dtsi"
 #include "sdm660-blsp.dtsi"
 #include "msm-rdbg.dtsi"
 #include "sdm660-camera.dtsi"

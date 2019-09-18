@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#include "sdm660-mtp.dtsi"
-/*#include "sdm636-camera-sensor-mtp.dtsi"*/
+#include "sdm660-mtp_e7t.dtsi"
+#include "sdm636-camera-sensor-mtp.dtsi"
 / {
 };
 

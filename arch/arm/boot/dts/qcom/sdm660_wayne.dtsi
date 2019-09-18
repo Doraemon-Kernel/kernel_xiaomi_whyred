@@ -308,7 +308,15 @@
 					dev = "/dev/block/platform/soc/c0c4000.sdhci/by-name/vendor";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,discard";
-					fsmgr_flags = "wait,slotselect,verify";
+					fsmgr_flags = "wait,verify";
+					status = "ok";
+				};
+				system {
+					compatible = "android,system";
+					dev = "/dev/block/platform/soc/c0c4000.sdhci/by-name/system";
+					type = "ext4";
+					mnt_flags = "ro,barrier=1,discard";
+					fsmgr_flags = "wait,verify";
 					status = "ok";
 				};
 			};
@@ -2549,7 +2557,7 @@
 
 #include "sdm660-ion.dtsi"
 #include "sdm660-bus.dtsi"
-#include "msm-pm660.dtsi"
+#include "msm-pm660_wayne.dtsi"
 #include "msm-pm660l.dtsi"
 #include "msm-pm660-rpm-regulator.dtsi"
 #include "msm-pm660l-rpm-regulator.dtsi"

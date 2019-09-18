@@ -826,7 +826,6 @@
 		status = "disabled";
 		compatible = "qcom,sdm660-asoc-snd";
 		qcom,model = "sdm660-snd-card";
-		qcom,wsa-disable;
 		qcom,wcn-btfm;
 		qcom,mi2s-audio-intf;
 		qcom,auxpcm-audio-intf;
@@ -836,7 +835,7 @@
 		qcom,msm-mbhc-hphl-swh = <1>;
 		qcom,msm-mbhc-gnd-swh = <1>;
 		qcom,msm-micbias1-ext-cap;
-		//qcom,msm-micbias2-ext-cap;
+		qcom,msm-micbias2-ext-cap;
 		qcom,msm-hs-micbias-type = "external";
 		//qcom,us-euro-gpios = <&us_euro_gpio>;
 		qcom,cdc-pdm-gpios = <&cdc_pdm_gpios>;
