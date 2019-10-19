@@ -33,9 +33,10 @@ static DEFINE_PER_CPU(struct cpu_sync, sync_info);
 static struct workqueue_struct *cpu_boost_wq;
 
 static struct work_struct input_boost_work;
-static bool input_boost_enabled;
 static bool max_boost_active = false;
 
+static unsigned int input_boost_enabled = 1;
+module_param(input_boost_enabled, uint, 0644);
 static unsigned int max_boost_enabled = 1;
 module_param(max_boost_enabled, uint, 0644);
 static unsigned int mdss_boost_enabled = 1;
@@ -58,8 +59,7 @@ static int set_input_boost_freq(const char *buf, const struct kernel_param *kp)
 	int i, ntokens = 0;
 	unsigned int val, cpu;
 	const char *cp = buf;
-	bool enabled = false;
-
+	
 	while ((cp = strpbrk(cp + 1, " :")))
 		ntokens++;
 
@@ -69,7 +69,7 @@ static int set_input_boost_freq(const char *buf, const struct kernel_param *kp)
 			return -EINVAL;
 		for_each_possible_cpu(i)
 			per_cpu(sync_info, i).input_boost_freq = val;
-		goto check_enable;
+		goto out;
 	}
 
 	/* CPU:value pair */
@@ -88,15 +88,7 @@ static int set_input_boost_freq(const char *buf, const struct kernel_param *kp)
 		cp++;
 	}
 
-check_enable:
-	for_each_possible_cpu(i) {
-		if (per_cpu(sync_info, i).input_boost_freq) {
-			enabled = true;
-			break;
-		}
-	}
-	input_boost_enabled = enabled;
-
+out:
 	return 0;
 }
 
@@ -279,7 +271,7 @@ static void cpuboost_input_event(struct input_handle *handle,
 {
 	last_input_time = jiffies;
 	
-	if (!input_boost_enabled)
+	if (input_boost_enabled < 1)
 		return;
 
 	if (work_pending(&input_boost_work))
