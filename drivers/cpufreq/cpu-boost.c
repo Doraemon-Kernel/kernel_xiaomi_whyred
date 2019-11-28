@@ -44,7 +44,7 @@ module_param(sched_boost_on_input, bool, 0644);
 static bool sched_boost_active;
 
 static struct delayed_work input_boost_rem;
-static u64 last_input_time;
+unsigned long last_input_time;
 
 static int set_input_boost_freq(const char *buf, const struct kernel_param *kp)
 {
@@ -229,6 +229,8 @@ static void do_input_boost(struct work_struct *work)
 static void cpuboost_input_event(struct input_handle *handle,
 		unsigned int type, unsigned int code, int value)
 {
+	last_input_time = jiffies;
+	
 	if (!input_boost_enabled)
 		return;
 
@@ -236,7 +238,6 @@ static void cpuboost_input_event(struct input_handle *handle,
 		return;
 
 	queue_work(cpu_boost_wq, &input_boost_work);
-	last_input_time = jiffies;
 }
 
 static int cpuboost_input_connect(struct input_handler *handler,
