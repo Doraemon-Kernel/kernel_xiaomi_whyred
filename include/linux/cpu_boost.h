@@ -6,8 +6,12 @@
 #ifdef CONFIG_CPU_BOOST
 extern unsigned long last_input_time;
 void input_boost_max_kick(unsigned int duration_ms);
+void mdss_boost_kick(void);
 #else
 static inline void input_boost_max_kick(unsigned int duration_ms)
+{
+}
+static inline void mdss_boost_kick(void)
 {
 }
 #endif
