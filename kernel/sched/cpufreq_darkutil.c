@@ -206,10 +206,8 @@ static unsigned int get_next_freq(struct dugov_cpu *sg_cpu, unsigned long util,
 {
 	struct dugov_policy *sg_policy = sg_cpu->sg_policy;
 	struct cpufreq_policy *policy = sg_policy->policy;
-	struct dugov_tunables *tunables = sg_policy->tunables;
 	unsigned int freq = arch_scale_freq_invariant() ?
 				policy->cpuinfo.max_freq : policy->cur;
-	unsigned int capacity_factor, silver_max_freq, gold_max_freq;
 
 	if (freq == sg_cpu->cached_raw_freq && sg_policy->next_freq != UINT_MAX)
 		return sg_policy->next_freq;
