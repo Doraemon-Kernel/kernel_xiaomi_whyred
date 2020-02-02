@@ -109,6 +109,7 @@ config SND_SOC_INT_CODEC
 	select DTS_SRS_TM
 	select SND_HWDEP
 	select MSM_ULTRASOUND
+	select DTS_EAGLE
 	select SND_SOC_COMPRESS
 	select PINCTRL_LPI
 	help
@@ -141,6 +142,7 @@ config SND_SOC_EXT_CODEC
 	select SND_SOC_WCD_CPE
 	select SND_HWDEP
 	select MSM_ULTRASOUND
+	select DTS_EAGLE
 	select SND_SOC_COMPRESS
 	select PINCTRL_LPI
 	help
