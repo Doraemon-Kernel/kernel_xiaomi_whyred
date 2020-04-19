@@ -3220,7 +3220,11 @@ enum tfa_error tfa_dev_start(struct tfa_device *tfa, int next_profile, int vstep
 error_exit:
 	show_current_state(tfa);
 
-	return err;
+	if (err != Tfa98xx_Error_Ok) {
+		return tfa_error_max;
+	}
+
+	return tfa_error_ok;
 }
 
 enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
@@ -3236,12 +3240,17 @@ enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
 	/* powerdown CF */
 	err = tfa98xx_powerdown(tfa, 1);
 	if (err != Tfa98xx_Error_Ok)
-		return err;
+		goto error_exit;
 
 	/* disable I2S output on TFA1 devices without TDM */
 	err = tfa98xx_aec_output(tfa, 0);
 
-	return err;
+error_exit:
+	if (err != Tfa98xx_Error_Ok) {
+		return tfa_error_max;
+	}
+
+	return tfa_error_ok;
 }
 
 /*
@@ -3801,16 +3810,15 @@ enum tfa_error tfa_dev_set_state(struct tfa_device *tfa, enum tfa_state state, i
 
 		/* Make sure the DSP is running! */
 		do {
-			err = tfa98xx_dsp_system_stable(tfa, &ready);
-			if (err != tfa_error_ok)
-				return err;
+			if (tfa98xx_dsp_system_stable(tfa, &ready) != Tfa98xx_Error_Ok)
+				return tfa_error_max;
 			if (ready)
 				break;
 		} while (loop--);
 		if (((!tfa->is_probus_device) && (is_calibration)) || ((tfa->rev & 0xff) == 0x13))
 		{
 			/* Enable FAIM when clock is stable, to avoid MTP corruption */
-			err = tfa98xx_faim_protect(tfa, 1);
+			err = (enum tfa_error)tfa98xx_faim_protect(tfa, 1);
 			if (tfa->verbose) {
 				pr_debug("FAIM enabled (err:%d).\n", err);
 			}
@@ -3840,7 +3848,7 @@ enum tfa_error tfa_dev_set_state(struct tfa_device *tfa, enum tfa_state state, i
 		}
 		if (((!tfa->is_probus_device) && (is_calibration)) || ((tfa->rev & 0xff) == 0x13))
 		{
-			err = tfa98xx_faim_protect(tfa, 0);
+			err = (enum tfa_error)tfa98xx_faim_protect(tfa, 0);
 			if (tfa->verbose) {
 				pr_debug("FAIM disabled (err:%d).\n", err);
 			}
@@ -3964,7 +3972,7 @@ int tfa_dev_mtp_get(struct tfa_device *tfa, enum tfa_mtp item)
 
 enum tfa_error tfa_dev_mtp_set(struct tfa_device *tfa, enum tfa_mtp item, int value)
 {
-	enum tfa_error err = tfa_error_ok;
+	enum Tfa98xx_Error err = Tfa98xx_Error_Ok;
 
 	switch (item) {
 	case TFA_MTP_OTC:
@@ -3994,14 +4002,19 @@ enum tfa_error tfa_dev_mtp_set(struct tfa_device *tfa, enum tfa_mtp item, int va
 		}
 		else {
 			pr_debug("Error: Current device has no secondary Re25 channel \n");
-			err = tfa_error_bad_param;
+			err = Tfa98xx_Error_Bad_Parameter;
 		}
 		break;
 	case TFA_MTP_LOCK:
 		break;
 	}
 
-	return err;
+	if (err != Tfa98xx_Error_Ok) {
+		pr_err("TFA98xx Error code is %d\n", err);
+		return tfa_error_max;
+	}
+	
+	return tfa_error_ok;
 }
 
 int tfa_get_pga_gain(struct tfa_device *tfa)
@@ -4164,7 +4177,7 @@ void tfa_adapt_noisemode(struct tfa_device *tfa)
 }
 int tfa_plop_noise_interrupt(struct tfa_device *tfa, int profile, int vstep)
 {
-	enum Tfa98xx_Error err;
+	enum tfa_error err;
 	int no_clk = 0;
 
 	/* Remove sticky bit by reading it once */
@@ -4179,7 +4192,7 @@ int tfa_plop_noise_interrupt(struct tfa_device *tfa, int profile, int vstep)
 			/* Clock is lost. Set I2CR to remove POP noise */
 			pr_info("No clock detected. Resetting the I2CR to avoid pop on 72! \n");
 			err = tfa_dev_start(tfa, profile, vstep);
-			if (err != Tfa98xx_Error_Ok) {
+			if (err != tfa_error_ok) {
 				pr_err("Error loading i2c registers (tfa_dev_start), err=%d\n", err);
 			}
 			else {
