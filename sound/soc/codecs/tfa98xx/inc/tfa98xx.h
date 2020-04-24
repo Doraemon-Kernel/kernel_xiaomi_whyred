@@ -34,6 +34,7 @@
 #define TFA98XX_FLAG_LP_MODES	        (1 << 7)
 #define TFA98XX_FLAG_TDM_DEVICE         (1 << 8)
 #define TFA98XX_FLAG_ADAPT_NOISE_MODE   (1 << 9)
+#define TFA98XX_FLAG_CHIP_SELECTED      (1 << 16)
 
 #define TFA98XX_NUM_RATES		9
 
