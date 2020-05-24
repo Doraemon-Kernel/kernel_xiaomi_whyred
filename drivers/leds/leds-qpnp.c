@@ -2529,6 +2529,7 @@ static ssize_t lut_flags_store(struct device *dev,
 	case QPNP_ID_RGB_RED:
 	case QPNP_ID_RGB_GREEN:
 	case QPNP_ID_RGB_BLUE:
+	case QPNP_ID_RGB_WHITE:
 		pwm_cfg = led->rgb_cfg->pwm_cfg;
 		break;
 	case QPNP_ID_KPDBL:
@@ -2695,7 +2696,7 @@ static void led_blink(struct qpnp_led_data *led,
 		}
 		qpnp_pwm_init(pwm_cfg, led->pdev, led->cdev.name);
 		if (led->id == QPNP_ID_RGB_RED || led->id == QPNP_ID_RGB_GREEN
-				|| led->id == QPNP_ID_RGB_BLUE || led->id == QPNP_ID_RGB_WHITE) {
+				|| led->id == QPNP_ID_RGB_BLUE || led->id == QPNP_ID_RGB_WHITE ) {
 			rc = qpnp_rgb_set(led);
 			if (rc < 0)
 				dev_err(&led->pdev->dev,
