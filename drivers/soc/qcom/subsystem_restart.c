@@ -1079,6 +1079,9 @@ static void device_restart_work_hdlr(struct work_struct *work)
 							dev->desc->name);
 }
 
+#ifdef CONFIG_QCOM_DLOAD_MODE
+extern int download_mode;
+#endif
 int subsystem_restart_dev(struct subsys_device *dev)
 {
 	const char *name;
@@ -1104,6 +1107,11 @@ int subsystem_restart_dev(struct subsys_device *dev)
 		return -EBUSY;
 	}
 
+#ifdef CONFIG_QCOM_DLOAD_MODE
+	if(download_mode == 0){
+		dev->restart_level = 1;
+	}
+#endif
 	pr_info("Restart sequence requested for %s, restart_level = %s.\n",
 		name, restart_levels[dev->restart_level]);
 
