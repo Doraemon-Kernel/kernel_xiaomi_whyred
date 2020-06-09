@@ -681,6 +681,8 @@ KBUILD_CFLAGS	+= -mllvm -polly \
 		   -mllvm -polly-detect-keep-going \
 		   -mllvm -polly-vectorizer=stripmine \
 		   -mllvm -polly-invariant-load-hoisting
+KBUILD_CFLAGS	+= -mcpu=kryo -mtune=kryo
+KBUILD_AFLAGS	+= -mcpu=kryo -mtune=kryo
 else
 KBUILD_CFLAGS	+=
 endif
