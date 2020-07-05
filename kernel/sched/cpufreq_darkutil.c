@@ -218,14 +218,14 @@ static unsigned int get_next_freq(struct dugov_policy *du_policy,
 	unsigned long load = 100 * util / max;
 	unsigned int freq = arch_scale_freq_invariant() ?
 				policy->cpuinfo.max_freq : policy->cur;
-	unsigned int capacity_factor, silver_max_freq, gold_max_freq;
+//	unsigned int capacity_factor, silver_max_freq, gold_max_freq;
 
-	if(state_suspended) {
-		capacity_factor = du_policy->tunables->suspend_capacity_factor;
-		silver_max_freq = du_policy->tunables->silver_suspend_max_freq;
-		gold_max_freq = du_policy->tunables->gold_suspend_max_freq;
-		max = max * (capacity_factor + 1) / capacity_factor;
-	}
+//	if(state_suspended) {
+//		capacity_factor = du_policy->tunables->suspend_capacity_factor;
+//		silver_max_freq = du_policy->tunables->silver_suspend_max_freq;
+//		gold_max_freq = du_policy->tunables->gold_suspend_max_freq;
+//		max = max * (capacity_factor + 1) / capacity_factor;
+//	}
 
 	if(load < tunables->target_load1){
 		freq = (freq + (freq >> tunables->bit_shift1)) * util / max;
@@ -240,17 +240,17 @@ static unsigned int get_next_freq(struct dugov_policy *du_policy,
 	case 1:
 	case 2:
 	case 3:
-		if(state_suspended &&  silver_max_freq > 0 && silver_max_freq < freq)
-			return silver_max_freq;
+//		if(state_suspended &&  silver_max_freq > 0 && silver_max_freq < freq)
+//			return silver_max_freq;
 		break;
 	case 4:
 	case 5:
-		if(state_suspended && gold_max_freq > 0 && gold_max_freq < freq)
-			return gold_max_freq;
+//		if(state_suspended && gold_max_freq > 0 && gold_max_freq < freq)
+//			return gold_max_freq;
 		break;
 	case 6:
 	case 7:
-		if(state_suspended)
+//		if(state_suspended)
 			return policy->min;
 		break;
 	default:
