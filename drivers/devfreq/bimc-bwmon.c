@@ -26,8 +26,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/spinlock.h>
-#include <linux/log2.h>
-#include <linux/sizes.h>
 #include "governor_bw_hwmon.h"
 
 #define GLB_INT_STATUS(m)	((m)->global_base + 0x100)
@@ -106,8 +104,6 @@ struct bwmon {
 	u32 throttle_adj;
 	u32 sample_size_ms;
 	u32 intr_status;
-	u8 count_shift;
-	u32 thres_lim;
 	u32 byte_mask;
 	u32 byte_match;
 };
@@ -422,18 +418,11 @@ static u32 calc_zone_counts(struct bw_hwmon *hw)
 	return zone_counts;
 }
 
-#define MB_SHIFT	20
-
-static u32 mbps_to_count(unsigned long mbps, unsigned int ms, u8 shift)
+static unsigned int mbps_to_mb(unsigned long mbps, unsigned int ms)
 {
 	mbps *= ms;
-
-	if (shift > MB_SHIFT)
-		mbps >>= shift - MB_SHIFT;
-	else
-		mbps <<= MB_SHIFT - shift;
-
-	return DIV_ROUND_UP(mbps, MSEC_PER_SEC);
+	mbps = DIV_ROUND_UP(mbps, MSEC_PER_SEC);
+	return mbps;
 }
 
 /*
@@ -441,10 +430,9 @@ static u32 mbps_to_count(unsigned long mbps, unsigned int ms, u8 shift)
  * Zone 0: byte count < THRES_LO
  * Zone 1: THRES_LO < byte count < THRES_MED
  * Zone 2: THRES_MED < byte count < THRES_HI
- * Zone 3: THRES_LIM > byte count > THRES_HI
+ * Zone 3: byte count > THRES_HI
  */
-#define	THRES_LIM(shift)	(0xFFFFFFFF >> shift)
-
+#define	THRES_LIM	0x7FFU
 static __always_inline
 void set_zone_thres(struct bwmon *m, unsigned int sample_ms,
 		    enum mon_reg_type type)
@@ -453,14 +441,14 @@ void set_zone_thres(struct bwmon *m, unsigned int sample_ms,
 	u32 hi, med, lo;
 	u32 zone_cnt_thres = calc_zone_counts(hw);
 
-	hi = mbps_to_count(hw->up_wake_mbps, sample_ms, m->count_shift);
-	med = mbps_to_count(hw->down_wake_mbps, sample_ms, m->count_shift);
+	hi = mbps_to_mb(hw->up_wake_mbps, sample_ms);
+	med = mbps_to_mb(hw->down_wake_mbps, sample_ms);
 	lo = 0;
 
-	if (unlikely((hi > m->thres_lim) || (med > hi) || (lo > med))) {
+	if (unlikely((hi > THRES_LIM) || (med > hi) || (lo > med))) {
 		pr_warn("Zone thres larger than hw limit: hi:%u med:%u lo:%u\n",
 				hi, med, lo);
-		hi = min(hi, m->thres_lim);
+		hi = min(hi, THRES_LIM);
 		med = min(med, hi - 1);
 		lo = min(lo, med-1);
 	}
@@ -590,7 +578,7 @@ unsigned long mon_get_zone_stats(struct bwmon *m, enum mon_reg_type type)
 
 	zone = get_zone(m, type);
 	count = get_zone_count(m, zone, type);
-	count <<= m->count_shift;
+	count *= SZ_1M;
 
 	dev_dbg(m->dev, "Zone%d Max byte count: %08lx\n", zone, count);
 
@@ -1003,7 +991,7 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct bwmon *m;
 	int ret;
-	u32 data, count_unit;
+	u32 data;
 
 	m = devm_kzalloc(dev, sizeof(*m), GFP_KERNEL);
 	if (!m)
@@ -1067,11 +1055,6 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-
-	if (of_property_read_u32(dev->of_node, "qcom,count-unit", &count_unit))
-		count_unit = SZ_1M;
-	m->count_shift = order_base_2(count_unit);
-	m->thres_lim = THRES_LIM(m->count_shift);
 
 	switch (m->spec->reg_type) {
 	case MON3:
