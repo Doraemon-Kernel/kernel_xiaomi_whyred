@@ -54,11 +54,6 @@
 #define MON2_ZONE_CNT(m)	((m)->base + 0x2D8)
 #define MON2_ZONE_MAX(m, zone)	((m)->base + 0x2E0 + 0x4 * zone)
 
-enum bwmon_type {
-	BWMON_1,
-	BWMON_2,
-};
-
 struct bwmon_spec {
 	bool wrap_on_thres;
 	bool overflow;
@@ -81,6 +76,7 @@ struct bwmon {
 };
 
 #define to_bwmon(ptr)		container_of(ptr, struct bwmon, hw)
+#define has_hw_sampling(m)		(m->spec->hw_sampling)
 
 #define ENABLE_MASK BIT(0)
 #define THROTTLE_MASK 0x1F
@@ -90,29 +86,20 @@ struct bwmon {
 #define INT_STATUS_MASK_HWS	0xF0
 
 static DEFINE_SPINLOCK(glb_lock);
-
-static __always_inline void mon_enable(struct bwmon *m, enum bwmon_type type)
+static void mon_enable(struct bwmon *m)
 {
-	switch (type) {
-	case BWMON_1:
-		writel_relaxed(ENABLE_MASK | m->throttle_adj, MON_EN(m));
-		break;
-	case BWMON_2:
-		writel_relaxed(ENABLE_MASK | m->throttle_adj, MON2_EN(m));
-		break;
-	}
+	if (has_hw_sampling(m))
+		writel_relaxed((ENABLE_MASK | m->throttle_adj), MON2_EN(m));
+	else
+		writel_relaxed((ENABLE_MASK | m->throttle_adj), MON_EN(m));
 }
 
-static __always_inline void mon_disable(struct bwmon *m, enum bwmon_type type)
+static void mon_disable(struct bwmon *m)
 {
-	switch (type) {
-	case BWMON_1:
-		writel_relaxed(m->throttle_adj, MON_EN(m));
-		break;
-	case BWMON_2:
+	if (has_hw_sampling(m))
 		writel_relaxed(m->throttle_adj, MON2_EN(m));
-		break;
-	}
+	else
+		writel_relaxed(m->throttle_adj, MON_EN(m));
 	/*
 	 * mon_disable() and mon_irq_clear(),
 	 * If latter goes first and count happen to trigger irq, we would
@@ -123,25 +110,24 @@ static __always_inline void mon_disable(struct bwmon *m, enum bwmon_type type)
 
 #define MON_CLEAR_BIT	0x1
 #define MON_CLEAR_ALL_BIT	0x2
-static __always_inline
-void mon_clear(struct bwmon *m, bool clear_all, enum bwmon_type type)
+static void mon_clear(struct bwmon *m, bool clear_all)
 {
-	switch (type) {
-	case BWMON_1:
+	if (!has_hw_sampling(m)) {
 		writel_relaxed(MON_CLEAR_BIT, MON_CLEAR(m));
-		break;
-	case BWMON_2:
-		if (clear_all)
-			writel_relaxed(MON_CLEAR_ALL_BIT, MON2_CLEAR(m));
-		else
-			writel_relaxed(MON_CLEAR_BIT, MON2_CLEAR(m));
-		break;
+		goto out;
 	}
+
+	if (clear_all)
+		writel_relaxed(MON_CLEAR_ALL_BIT, MON2_CLEAR(m));
+	else
+		writel_relaxed(MON_CLEAR_BIT, MON2_CLEAR(m));
+
 	/*
 	 * The counter clear and IRQ clear bits are not in the same 4KB
 	 * region. So, we need to make sure the counter clear is completed
 	 * before we try to clear the IRQ or do any other counter operations.
 	 */
+out:
 	mb();
 }
 
@@ -162,139 +148,70 @@ static void mon_set_hw_sampling_window(struct bwmon *m, unsigned int sample_ms)
 	}
 }
 
-static void mon_glb_irq_enable(struct bwmon *m)
+static void mon_irq_enable(struct bwmon *m)
 {
 	u32 val;
 
+	spin_lock(&glb_lock);
 	val = readl_relaxed(GLB_INT_EN(m));
 	val |= 1 << m->mport;
 	writel_relaxed(val, GLB_INT_EN(m));
-}
 
-static __always_inline
-void mon_irq_enable(struct bwmon *m, enum bwmon_type type)
-{
-	u32 val;
-
-	spin_lock(&glb_lock);
-	switch (type) {
-	case BWMON_1:
-		mon_glb_irq_enable(m);
-		val = readl_relaxed(MON_INT_EN(m));
-		val |= INT_ENABLE_V1;
-		writel_relaxed(val, MON_INT_EN(m));
-		break;
-	case BWMON_2:
-		mon_glb_irq_enable(m);
-		val = readl_relaxed(MON_INT_EN(m));
-		val |= INT_STATUS_MASK_HWS;
-		writel_relaxed(val, MON_INT_EN(m));
-		break;
-	}
+	val = readl_relaxed(MON_INT_EN(m));
+	val |= has_hw_sampling(m) ? INT_STATUS_MASK_HWS : INT_ENABLE_V1;
+	writel_relaxed(val, MON_INT_EN(m));
 	spin_unlock(&glb_lock);
 	/*
-	 * make sure irq enable complete for local and global
+	 * make Sure irq enable complete for local and global
 	 * to avoid race with other monitor calls
 	 */
 	mb();
 }
 
-static void mon_glb_irq_disable(struct bwmon *m)
+static void mon_irq_disable(struct bwmon *m)
 {
 	u32 val;
 
+	spin_lock(&glb_lock);
 	val = readl_relaxed(GLB_INT_EN(m));
 	val &= ~(1 << m->mport);
 	writel_relaxed(val, GLB_INT_EN(m));
-}
 
-static __always_inline
-void mon_irq_disable(struct bwmon *m, enum bwmon_type type)
-{
-	u32 val;
-
-	spin_lock(&glb_lock);
-
-	switch (type) {
-	case BWMON_1:
-		mon_glb_irq_disable(m);
-		val = readl_relaxed(MON_INT_EN(m));
-		val &= ~INT_ENABLE_V1;
-		writel_relaxed(val, MON_INT_EN(m));
-		break;
-	case BWMON_2:
-		mon_glb_irq_disable(m);
-		val = readl_relaxed(MON_INT_EN(m));
-		val &= ~INT_STATUS_MASK_HWS;
-		writel_relaxed(val, MON_INT_EN(m));
-		break;
-	}
+	val = readl_relaxed(MON_INT_EN(m));
+	val &= has_hw_sampling(m) ? ~INT_STATUS_MASK_HWS : ~INT_ENABLE_V1;
+	writel_relaxed(val, MON_INT_EN(m));
 	spin_unlock(&glb_lock);
 	/*
-	 * make sure irq disable complete for local and global
+	 * make Sure irq disable complete for local and global
 	 * to avoid race with other monitor calls
 	 */
 	mb();
 }
 
-static __always_inline
-unsigned int mon_irq_status(struct bwmon *m, enum bwmon_type type)
+static unsigned int mon_irq_status(struct bwmon *m)
 {
 	u32 mval;
 
-	switch (type) {
-	case BWMON_1:
-		mval = readl_relaxed(MON_INT_STATUS(m));
-		dev_dbg(m->dev, "IRQ status p:%x, g:%x\n", mval,
-				readl_relaxed(GLB_INT_STATUS(m)));
-		mval &= INT_STATUS_MASK;
-		break;
-	case BWMON_2:
-		mval = readl_relaxed(MON_INT_STATUS(m));
-		dev_dbg(m->dev, "IRQ status p:%x, g:%x\n", mval,
-				readl_relaxed(GLB_INT_STATUS(m)));
-		mval &= INT_STATUS_MASK_HWS;
-		break;
-	}
+	mval = readl_relaxed(MON_INT_STATUS(m));
+
+	dev_dbg(m->dev, "IRQ status p:%x, g:%x\n", mval,
+			readl_relaxed(GLB_INT_STATUS(m)));
+
+	mval &= has_hw_sampling(m) ? INT_STATUS_MASK_HWS : INT_STATUS_MASK;
 
 	return mval;
 }
 
-
-static void mon_glb_irq_clear(struct bwmon *m)
+static void mon_irq_clear(struct bwmon *m)
 {
-	/*
-	 * Synchronize the local interrupt clear in mon_irq_clear()
-	 * with the global interrupt clear here. Otherwise, the CPU
-	 * may reorder the two writes and clear the global interrupt
-	 * before the local interrupt, causing the global interrupt
-	 * to be retriggered by the local interrupt still being high.
-	 */
+	u32 intclr;
+
+	intclr = has_hw_sampling(m) ? INT_STATUS_MASK_HWS : INT_STATUS_MASK;
+
+	writel_relaxed(intclr, MON_INT_CLR(m));
 	mb();
 	writel_relaxed(1 << m->mport, GLB_INT_CLR(m));
-	/*
-	 * Similarly, because the global registers are in a different
-	 * region than the local registers, we need to ensure any register
-	 * writes to enable the monitor after this call are ordered with the
-	 * clearing here so that local writes don't happen before the
-	 * interrupt is cleared.
-	 */
 	mb();
-}
-
-static __always_inline
-void mon_irq_clear(struct bwmon *m, enum bwmon_type type)
-{
-	switch (type) {
-	case BWMON_1:
-		writel_relaxed(INT_STATUS_MASK, MON_INT_CLR(m));
-		mon_glb_irq_clear(m);
-		break;
-	case BWMON_2:
-		writel_relaxed(INT_STATUS_MASK_HWS, MON_INT_CLR(m));
-		mon_glb_irq_clear(m);
-		break;
-	}
 }
 
 static int mon_set_throttle_adj(struct bw_hwmon *hw, uint adj)
@@ -414,12 +331,12 @@ static u32 mon_get_limit(struct bwmon *m)
 
 #define THRES_HIT(status)	(status & BIT(0))
 #define OVERFLOW(status)	(status & BIT(1))
-static unsigned long mon_get_count1(struct bwmon *m)
+static unsigned long mon_get_count(struct bwmon *m)
 {
 	unsigned long count, status;
 
 	count = readl_relaxed(MON_CNT(m));
-	status = mon_irq_status(m, BWMON_1);
+	status = mon_irq_status(m);
 
 	dev_dbg(m->dev, "Counter: %08lx\n", count);
 
@@ -468,23 +385,6 @@ static unsigned long mon_get_zone_stats(struct bwmon *m)
 	return count;
 }
 
-static __always_inline
-unsigned long mon_get_count(struct bwmon *m, enum bwmon_type type)
-{
-	unsigned long count;
-
-	switch (type) {
-	case BWMON_1:
-		count = mon_get_count1(m);
-		break;
-	case BWMON_2:
-		count = mon_get_zone_stats(m);
-		break;
-	}
-
-	return count;
-}
-
 /* ********** CPUBW specific code  ********** */
 
 /* Returns MBps of read/writes for the sampling window. */
@@ -498,29 +398,18 @@ static unsigned int mbps_to_bytes(unsigned long mbps, unsigned int ms,
 	return mbps;
 }
 
-static __always_inline
-unsigned long __get_bytes_and_clear(struct bw_hwmon *hw, enum bwmon_type type)
+static unsigned long get_bytes_and_clear(struct bw_hwmon *hw)
 {
 	struct bwmon *m = to_bwmon(hw);
 	unsigned long count;
 
-	mon_disable(m, type);
-	count = mon_get_count(m, type);
-	mon_clear(m, false, type);
-	mon_irq_clear(m, type);
-	mon_enable(m, type);
+	mon_disable(m);
+	count = has_hw_sampling(m) ? mon_get_zone_stats(m) : mon_get_count(m);
+	mon_clear(m, false);
+	mon_irq_clear(m);
+	mon_enable(m);
 
 	return count;
-}
-
-static unsigned long get_bytes_and_clear(struct bw_hwmon *hw)
-{
-	return __get_bytes_and_clear(hw, BWMON_1);
-}
-
-static unsigned long get_bytes_and_clear2(struct bw_hwmon *hw)
-{
-	return __get_bytes_and_clear(hw, BWMON_2);
 }
 
 static unsigned long set_thres(struct bw_hwmon *hw, unsigned long bytes)
@@ -529,10 +418,10 @@ static unsigned long set_thres(struct bw_hwmon *hw, unsigned long bytes)
 	u32 limit;
 	struct bwmon *m = to_bwmon(hw);
 
-	mon_disable(m, BWMON_1);
-	count = mon_get_count1(m);
-	mon_clear(m, false, BWMON_1);
-	mon_irq_clear(m, BWMON_1);
+	mon_disable(m);
+	count = mon_get_count(m);
+	mon_clear(m, false);
+	mon_irq_clear(m);
 
 	if (likely(!m->spec->wrap_on_thres))
 		limit = bytes;
@@ -540,7 +429,7 @@ static unsigned long set_thres(struct bw_hwmon *hw, unsigned long bytes)
 		limit = max(bytes, 500000UL);
 
 	mon_set_limit(m, limit);
-	mon_enable(m, BWMON_1);
+	mon_enable(m);
 
 	return count;
 }
@@ -549,22 +438,21 @@ static unsigned long set_hw_events(struct bw_hwmon *hw, unsigned sample_ms)
 {
 	struct bwmon *m = to_bwmon(hw);
 
-	mon_disable(m, BWMON_2);
-	mon_clear(m, false, BWMON_2);
-	mon_irq_clear(m, BWMON_2);
+	mon_disable(m);
+	mon_clear(m, false);
+	mon_irq_clear(m);
 
 	mon_set_zones(m, sample_ms);
-	mon_enable(m, BWMON_2);
+	mon_enable(m);
 
 	return 0;
 }
 
-static irqreturn_t
-__bwmon_intr_handler(int irq, void *dev, enum bwmon_type type)
+static irqreturn_t bwmon_intr_handler(int irq, void *dev)
 {
 	struct bwmon *m = dev;
 
-	m->intr_status = mon_irq_status(m, type);
+	m->intr_status = mon_irq_status(m);
 	if (!m->intr_status)
 		return IRQ_NONE;
 
@@ -572,16 +460,6 @@ __bwmon_intr_handler(int irq, void *dev, enum bwmon_type type)
 		return IRQ_WAKE_THREAD;
 
 	return IRQ_HANDLED;
-}
-
-static irqreturn_t bwmon_intr_handler(int irq, void *dev)
-{
-	return __bwmon_intr_handler(irq, dev, BWMON_1);
-}
-
-static irqreturn_t bwmon_intr_handler2(int irq, void *dev)
-{
-	return __bwmon_intr_handler(irq, dev, BWMON_2);
 }
 
 static irqreturn_t bwmon_intr_thread(int irq, void *dev)
@@ -592,151 +470,85 @@ static irqreturn_t bwmon_intr_thread(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static __always_inline int
-__start_bw_hwmon(struct bw_hwmon *hw, unsigned long mbps, enum bwmon_type type)
+static int start_bw_hwmon(struct bw_hwmon *hw, unsigned long mbps)
 {
 	struct bwmon *m = to_bwmon(hw);
-	u32 limit, zone_actions;
+	u32 limit;
+	u32 zone_actions = calc_zone_actions();
 	int ret;
-	irq_handler_t handler;
 
-	switch (type) {
-	case BWMON_1:
-		handler = bwmon_intr_handler;
-		limit = mbps_to_bytes(mbps, hw->df->profile->polling_ms, 0);
-		break;
-	case BWMON_2:
-		zone_actions = calc_zone_actions();
-		handler = bwmon_intr_handler2;
-		break;
-	}
-
-	ret = request_threaded_irq(m->irq, handler, bwmon_intr_thread,
+	ret = request_threaded_irq(m->irq, bwmon_intr_handler,
+				  bwmon_intr_thread,
 				  IRQF_ONESHOT | IRQF_SHARED,
 				  dev_name(m->dev), m);
 	if (ret) {
 		dev_err(m->dev, "Unable to register interrupt handler! (%d)\n",
-			ret);
+				ret);
 		return ret;
 	}
 
-	mon_disable(m, type);
+	mon_disable(m);
 
-	mon_clear(m, false, type);
-
-	switch (type) {
-	case BWMON_1:
-		handler = bwmon_intr_handler;
-		mon_set_limit(m, limit);
-		break;
-	case BWMON_2:
+	mon_clear(m, true);
+	limit = mbps_to_bytes(mbps, hw->df->profile->polling_ms, 0);
+	if (has_hw_sampling(m)) {
 		mon_set_zones(m, hw->df->profile->polling_ms);
 		/* Set the zone actions to increment appropriate counters */
 		writel_relaxed(zone_actions, MON2_ZONE_ACTIONS(m));
-		break;
+	} else {
+		mon_set_limit(m, limit);
 	}
 
-	mon_irq_clear(m, type);
-	mon_irq_enable(m, type);
-	mon_enable(m, type);
+	mon_irq_clear(m);
+	mon_irq_enable(m);
+	mon_enable(m);
 
 	return 0;
-}
-
-static int start_bw_hwmon(struct bw_hwmon *hw, unsigned long mbps)
-{
-	return __start_bw_hwmon(hw, mbps, BWMON_1);
-}
-
-static int start_bw_hwmon2(struct bw_hwmon *hw, unsigned long mbps)
-{
-	return __start_bw_hwmon(hw, mbps, BWMON_2);
-}
-
-static __always_inline
-void __stop_bw_hwmon(struct bw_hwmon *hw, enum bwmon_type type)
-{
-	struct bwmon *m = to_bwmon(hw);
-
-	mon_irq_disable(m, type);
-	free_irq(m->irq, m);
-	mon_disable(m, type);
-	mon_clear(m, true, type);
-	mon_irq_clear(m, type);
 }
 
 static void stop_bw_hwmon(struct bw_hwmon *hw)
 {
-	return __stop_bw_hwmon(hw, BWMON_1);
-}
-
-static void stop_bw_hwmon2(struct bw_hwmon *hw)
-{
-	return __stop_bw_hwmon(hw, BWMON_2);
-}
-
-static __always_inline
-int __suspend_bw_hwmon(struct bw_hwmon *hw, enum bwmon_type type)
-{
 	struct bwmon *m = to_bwmon(hw);
 
-	mon_irq_disable(m, type);
+	mon_irq_disable(m);
 	free_irq(m->irq, m);
-	mon_disable(m, type);
-	mon_irq_clear(m, type);
-
-	return 0;
+	mon_disable(m);
+	mon_clear(m, true);
+	mon_irq_clear(m);
 }
 
 static int suspend_bw_hwmon(struct bw_hwmon *hw)
 {
-	return __suspend_bw_hwmon(hw, BWMON_1);
-}
-
-static int suspend_bw_hwmon2(struct bw_hwmon *hw)
-{
-	return __suspend_bw_hwmon(hw, BWMON_2);
-}
-
-static int __resume_bw_hwmon(struct bw_hwmon *hw, enum bwmon_type type)
-{
 	struct bwmon *m = to_bwmon(hw);
-	int ret;
-	irq_handler_t handler;
 
-	switch (type) {
-	case BWMON_1:
-		handler = bwmon_intr_handler;
-		break;
-	case BWMON_2:
-		handler = bwmon_intr_handler2;
-		break;
-	}
-
-	mon_clear(m, false, type);
-	ret = request_threaded_irq(m->irq, handler, bwmon_intr_thread,
-				  IRQF_ONESHOT | IRQF_SHARED,
-				  dev_name(m->dev), m);
-	if (ret) {
-		dev_err(m->dev, "Unable to register interrupt handler! (%d)\n",
-			ret);
-		return ret;
-	}
-
-	mon_irq_enable(m, type);
-	mon_enable(m, type);
+	mon_irq_disable(m);
+	free_irq(m->irq, m);
+	mon_disable(m);
+	mon_irq_clear(m);
 
 	return 0;
 }
 
 static int resume_bw_hwmon(struct bw_hwmon *hw)
 {
-	return __resume_bw_hwmon(hw, BWMON_1);
-}
+	struct bwmon *m = to_bwmon(hw);
+	int ret;
 
-static int resume_bw_hwmon2(struct bw_hwmon *hw)
-{
-	return __resume_bw_hwmon(hw, BWMON_2);
+	mon_clear(m, false);
+	ret = request_threaded_irq(m->irq, bwmon_intr_handler,
+				  bwmon_intr_thread,
+				  IRQF_ONESHOT | IRQF_SHARED,
+				  dev_name(m->dev), m);
+	if (ret) {
+		dev_err(m->dev, "Unable to register interrupt handler! (%d)\n",
+				ret);
+		return ret;
+	}
+
+	mon_irq_enable(m);
+	mon_enable(m);
+
+	return 0;
 }
 
 /*************************************************************************/
@@ -802,6 +614,16 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (has_hw_sampling(m)) {
+		ret = of_property_read_u32(dev->of_node, "qcom,hw-timer-hz",
+					   &data);
+		if (ret) {
+			dev_err(dev, "HW sampling rate not specified!\n");
+			return ret;
+		}
+		m->hw_timer_hz = data;
+	}
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "base");
 	if (!res) {
 		dev_err(dev, "base not found!\n");
@@ -834,28 +656,15 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 	if (!m->hw.of_node)
 		return -EINVAL;
 
-	if (m->spec->hw_sampling) {
-		ret = of_property_read_u32(dev->of_node, "qcom,hw-timer-hz",
-					   &m->hw_timer_hz);
-		if (ret) {
-			dev_err(dev, "HW sampling rate not specified!\n");
-			return ret;
-		}
+	m->hw.start_hwmon = start_bw_hwmon;
+	m->hw.stop_hwmon = stop_bw_hwmon;
+	m->hw.suspend_hwmon = suspend_bw_hwmon;
+	m->hw.resume_hwmon = resume_bw_hwmon;
+	m->hw.get_bytes_and_clear = get_bytes_and_clear;
+	m->hw.set_thres = set_thres;
 
-		m->hw.start_hwmon = start_bw_hwmon2;
-		m->hw.stop_hwmon = stop_bw_hwmon2;
-		m->hw.suspend_hwmon = suspend_bw_hwmon2;
-		m->hw.resume_hwmon = resume_bw_hwmon2;
-		m->hw.get_bytes_and_clear = get_bytes_and_clear2;
+	if (has_hw_sampling(m))
 		m->hw.set_hw_events = set_hw_events;
-	} else {
-		m->hw.start_hwmon = start_bw_hwmon;
-		m->hw.stop_hwmon = stop_bw_hwmon;
-		m->hw.suspend_hwmon = suspend_bw_hwmon;
-		m->hw.resume_hwmon = resume_bw_hwmon;
-		m->hw.get_bytes_and_clear = get_bytes_and_clear;
-		m->hw.set_thres = set_thres;
-	}
 
 	if (m->spec->throt_adj) {
 		m->hw.set_throttle_adj = mon_set_throttle_adj;
