@@ -554,30 +554,14 @@ static int resume_bw_hwmon(struct bw_hwmon *hw)
 /*************************************************************************/
 
 static const struct bwmon_spec spec[] = {
-	[0] = {
-		.wrap_on_thres = true,
-		.overflow = false,
-		.throt_adj = false,
-		.hw_sampling = false
-	},
-	[1] = {
-		.wrap_on_thres = false,
-		.overflow = true,
-		.throt_adj = false,
-		.hw_sampling = false
-	},
-	[2] = {
-		.wrap_on_thres = false,
-		.overflow = true,
-		.throt_adj = true,
-		.hw_sampling = false
-	},
-	[3] = {
-		.wrap_on_thres = false,
-		.overflow = true,
-		.throt_adj = true,
-		.hw_sampling = true
-	},
+	{ .wrap_on_thres = true, .overflow = false, .throt_adj = false,
+		.hw_sampling = false},
+	{ .wrap_on_thres = false, .overflow = true, .throt_adj = false,
+		.hw_sampling = false},
+	{ .wrap_on_thres = false, .overflow = true, .throt_adj = true,
+		.hw_sampling = false},
+	{ .wrap_on_thres = false, .overflow = true, .throt_adj = true,
+		.hw_sampling = true},
 };
 
 static struct of_device_id match_table[] = {
@@ -593,6 +577,7 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct bwmon *m;
+	const struct of_device_id *id;
 	int ret;
 	u32 data;
 
@@ -608,15 +593,16 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 	}
 	m->mport = data;
 
-	m->spec = of_device_get_match_data(dev);
-	if (!m->spec) {
+	id = of_match_device(match_table, dev);
+	if (!id) {
 		dev_err(dev, "Unknown device type!\n");
 		return -ENODEV;
 	}
+	m->spec = id->data;
 
 	if (has_hw_sampling(m)) {
-		ret = of_property_read_u32(dev->of_node, "qcom,hw-timer-hz",
-					   &data);
+		ret = of_property_read_u32(dev->of_node,
+				"qcom,hw-timer-hz", &data);
 		if (ret) {
 			dev_err(dev, "HW sampling rate not specified!\n");
 			return ret;
@@ -655,20 +641,17 @@ static int bimc_bwmon_driver_probe(struct platform_device *pdev)
 	m->hw.of_node = of_parse_phandle(dev->of_node, "qcom,target-dev", 0);
 	if (!m->hw.of_node)
 		return -EINVAL;
-
-	m->hw.start_hwmon = start_bw_hwmon;
-	m->hw.stop_hwmon = stop_bw_hwmon;
-	m->hw.suspend_hwmon = suspend_bw_hwmon;
-	m->hw.resume_hwmon = resume_bw_hwmon;
-	m->hw.get_bytes_and_clear = get_bytes_and_clear;
-	m->hw.set_thres = set_thres;
-
+	m->hw.start_hwmon = &start_bw_hwmon;
+	m->hw.stop_hwmon = &stop_bw_hwmon;
+	m->hw.suspend_hwmon = &suspend_bw_hwmon;
+	m->hw.resume_hwmon = &resume_bw_hwmon;
+	m->hw.get_bytes_and_clear = &get_bytes_and_clear;
+	m->hw.set_thres =  &set_thres;
 	if (has_hw_sampling(m))
-		m->hw.set_hw_events = set_hw_events;
-
+		m->hw.set_hw_events = &set_hw_events;
 	if (m->spec->throt_adj) {
-		m->hw.set_throttle_adj = mon_set_throttle_adj;
-		m->hw.get_throttle_adj = mon_get_throttle_adj;
+		m->hw.set_throttle_adj = &mon_set_throttle_adj;
+		m->hw.get_throttle_adj = &mon_get_throttle_adj;
 	}
 
 	ret = register_bw_hwmon(dev, &m->hw);
