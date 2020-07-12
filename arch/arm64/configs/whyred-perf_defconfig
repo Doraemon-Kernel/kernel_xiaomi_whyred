@@ -56,7 +56,7 @@ CONFIG_IOSCHED_ZEN=y
 ## Doraemon Kernel ##
 
 # CONFIG_USELIB is not set
-CONFIG_AUDIT=y
+# CONFIG_AUDIT is not set
 # CONFIG_AUDITSYSCALL is not set
 CONFIG_NO_HZ=y
 CONFIG_HIGH_RES_TIMERS=y
