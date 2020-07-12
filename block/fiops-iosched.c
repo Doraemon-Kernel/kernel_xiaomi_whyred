@@ -541,7 +541,7 @@ static int fiops_merge(struct request_queue *q, struct request **req,
 	struct request *__rq;
 
 	__rq = fiops_find_rq_fmerge(fiopsd, bio);
-	if (__rq && elv_rq_merge_ok(__rq, bio)) {
+	if (__rq && elv_bio_merge_ok(__rq, bio)) {
 		*req = __rq;
 		return ELEVATOR_FRONT_MERGE;
 	}
