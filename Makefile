@@ -661,6 +661,12 @@ KBUILD_CFLAGS   += -O3
 endif
 endif
 
+ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+KBUILD_CFLAGS   += $(call cc-disable-warning, nonnull)
+KBUILD_CFLAGS   += $(call cc-disable-warning, array-bounds)
+KBUILD_CFLAGS	+= $(call cc-disable-warning, maybe-uninitialized,)
+endif
+
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
 
