@@ -60,7 +60,7 @@ config DOLBY_LICENSE
 	 This is required by Dolby GEF implementation which needs
 	 nothing but dolby license validation functionality in driver.
 
-config DTS_EAGLE_NEW
+config DTS_EAGLE
 	bool "Enable DTS Eagle Support"
 	depends on SND_SOC_MSM_QDSP6V2_INTF
 	select SND_HWDEP
