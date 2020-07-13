@@ -289,13 +289,13 @@ static void msm_restart_prepare(const char *cmd)
 			((cmd != NULL && cmd[0] != '\0') &&
 			!strcmp(cmd, "edl")))
 			need_warm_reset = true;
-	} else {
+ 	} else {
 		need_warm_reset = (get_dload_mode() ||
 				(cmd != NULL && cmd[0] != '\0'));
 	}
 
-	/* To preserve console-ramoops */
-	need_warm_reset = true;
+//	/* To preserve console-ramoops */
+//	need_warm_reset = true;
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 	if (need_warm_reset) {
