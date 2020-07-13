@@ -70,6 +70,7 @@ CONFIG_HAVE_KERNEL_LZ4=y
 CONFIG_KERNEL_GZIP=y
 # CONFIG_KERNEL_LZ4 is not set
 CONFIG_PANIC_ON_OOPS_VALUE=0
+CONFIG_DTS_SRS_TM=y
 ## Doraemon Kernel ##
 
 ## Anbox Android Emulator ##
