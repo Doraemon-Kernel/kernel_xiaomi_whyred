@@ -2,8 +2,8 @@
 qcom,l6650desay_4000mah {
 	qcom, = <24>;
 	qcom,max-voltage-uv = <4400000>;
+	qcom,fcc-max-ua = <2500000>;
 	qcom,fastchg-current-ma = <2500>;
-
 	qcom,nom-batt-capacity-mah = <4000>;
 	qcom,batt-id-kohm = <30>;
 	qcom,battery-beta = <3380>;
