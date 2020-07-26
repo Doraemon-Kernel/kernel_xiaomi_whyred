@@ -358,8 +358,8 @@ PERL		= perl
 PYTHON		= python
 CHECK		= sparse
 # ifeq ($(cc-name),gcc)
-OPT_FLAGS	= -march=armv8-a+crc+crypto -mcpu=cortex-a73.cortex-a53 \
-		  -mtune=cortex-a73.cortex-a53
+# OPT_FLAGS	= -march=armv8-a+crc+crypto -mcpu=cortex-a73.cortex-a53 \
+# 		  -mtune=cortex-a73.cortex-a53
 # endif
 
 # Use the wrapper for the compiler.  This wrapper scans for new
