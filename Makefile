@@ -357,10 +357,10 @@ DEPMOD		= /sbin/depmod
 PERL		= perl
 PYTHON		= python
 CHECK		= sparse
-ifeq ($(cc-name),gcc)
+# ifeq ($(cc-name),gcc)
 OPT_FLAGS	= -march=armv8-a+crc+crypto -mcpu=cortex-a73.cortex-a53 \
 		  -mtune=cortex-a73.cortex-a53
-endif
+# endif
 
 # Use the wrapper for the compiler.  This wrapper scans for new
 # warnings and causes the build to stop upon encountering them.
@@ -368,19 +368,19 @@ CC		= $(PYTHON) $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-ifeq ($(cc-name),gcc)
-CFLAGS_MODULE   = $(OPT_FLAGS)
-AFLAGS_MODULE   = $(OPT_FLAGS)
-LDFLAGS_MODULE  = $(OPT_FLAGS)
-CFLAGS_KERNEL	= $(OPT_FLAGS)
-AFLAGS_KERNEL	= $(OPT_FLAGS)
-else
+# ifeq ($(cc-name),gcc)
+# CFLAGS_MODULE   = $(OPT_FLAGS)
+# AFLAGS_MODULE   = $(OPT_FLAGS)
+# LDFLAGS_MODULE  = $(OPT_FLAGS)
+# CFLAGS_KERNEL	= $(OPT_FLAGS)
+# AFLAGS_KERNEL	= $(OPT_FLAGS)
+# else
 CFLAGS_MODULE   =
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
 CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
-endif
+# endif
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage -fno-tree-loop-im
 CFLAGS_KCOV	= -fsanitize-coverage=trace-pc
 
