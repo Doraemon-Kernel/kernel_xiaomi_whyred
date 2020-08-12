@@ -134,6 +134,7 @@ CONFIG_ZRAM_SIZE_OVERRIDE=3
 # CONFIG_MIUI_NEW_CAM is not set
 CONFIG_MIUI_OLD_CAM=y
 CONFIG_BINFMT_MISC=y
+CONFIG_FRAME_WARN=0
 ## Doraemon Kernel ##
 
 ## Anbox Android Emulator ##
