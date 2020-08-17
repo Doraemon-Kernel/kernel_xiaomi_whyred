@@ -486,8 +486,9 @@
 		};
 
 		cont_splash_mem: splash_region@9d400000 {
-			reg = <0x0 0x9d400000 0x0 0x23ff000>;
-			label = "cont_splash_mem";
+			reg = <0x0 0x9d400000 0x0 0x02400000>;
+			no-map;
+			label = "not_cont_splash_mem";
 		};
 
 		dfps_data_mem: dfps_data_mem@0x9f7ff000 {
