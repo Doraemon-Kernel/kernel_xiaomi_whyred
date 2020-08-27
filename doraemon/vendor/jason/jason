@@ -1,0 +1,5 @@
+cd $ROOT_SOURCE
+time make O=out -j4 ARCH=arm64 CC="/usr/bin/clang" CLANG_TRIPLE="aarch64-linux-gnu-"
+rm -rvf $ROOT_SOURCE/doraemon/vendor/jason/anykernel3/Image.gz-dtb
+cp -rv $ROOT_SOURCE/out/arch/arm64/boot/Image.gz-dtb $ROOT_SOURCE/doraemon/vendor/jason/anykernel3/
+zip -rv9 Doraemon-Kernel-$DEVICE-$(date +"%m""%d"-"%H""%M").zip doraemon/vendor/jason/anykernel3/* && mv Doraemon-Kernel-* doraemon/Download/ "
