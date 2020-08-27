@@ -67,7 +67,7 @@ int profile_setup(char *str)
 		pr_info("kernel sleep profiling enabled (shift: %ld)\n",
 			prof_shift);
 #else
-		pr_warn("kernel sleep profiling requires CONFIG_SCHEDSTATS\n");
+		pr_debug("kernel sleep profiling requires CONFIG_SCHEDSTATS\n");
 #endif /* CONFIG_SCHEDSTATS */
 	} else if (!strncmp(str, schedstr, strlen(schedstr))) {
 		prof_on = SCHED_PROFILING;
