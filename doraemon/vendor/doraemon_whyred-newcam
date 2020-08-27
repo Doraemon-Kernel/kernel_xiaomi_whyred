@@ -1,0 +1,40 @@
+echo " ${BLUE}Doraemon Kernel EAS (LTS) Linux 4.4.y ";
+echo " ${RED}Kernel Info: ";
+echo " ${GREEN}Linux: Linux LTS 4.4.y ";
+echo " Base Linux: From CodeAurora";
+echo " Linux Version: 4.4.205 ";
+echo " Support Android: Oreo/Pie/Quiche";
+echo " Overclock: Little Core: 1.1Ghz -> 1.8Ghz ";
+echo "	    Big Core: 633Mhz -> 1.9Ghz ";
+echo " Developer Info: Nobi Nobita (KernelPanix) ";
+echo " Telegram Channel: https://t.me/totoronk ";
+echo " 						";
+echo " ${RED}Device Info : ";
+echo " ${GREEN}Device        | Xiaomi Redmi Note 5 Pro ";
+echo " SoC           | Qualcomm SDM660 Snapdragon 636 ";
+echo " CPU           | 8x Qualcomm® Kryo™ 260 up to 1.8GHz ";
+echo " GPU           | Adreno 509 ";
+echo " Memory        | 3GB / 4GB / 6GB RAM (LPDDR4X) ";
+echo " Android       | 7.1.1 / 8.1.0 / 9.0 / 10.0 / 11.0 ";
+echo " Storage       | 32GB / 64GB eMMC 5.1 flash storage ";
+echo " Battery       | Non-removable Li-Po 4000 mAh ";
+echo " Dimensions    | 158.6 x 75.4 x 8.05 mm ";
+echo " Display       | 2160 x 1080 (18:9), 5.99 inch ";
+echo " Rear camera 1 | 12MP, 1.25-micron pixels, f/2.2 Dual LED flash ";
+echo " Rear camera 2 | 5MP, 1.12-micron pixels, f/2.0 ";
+echo " Front camera  | 20MP, 1-micron pixels, f/2.2 1080p 30 fps video, Selfie-light ";
+echo " ${NOCOLOR} ";
+
+cd $ROOT_SOURCE
+export CAMERA=NewCam
+export ARCH=arm64
+export SUBARCH=arm64
+export KBUILD_BUILD_USER=Nobita
+export KBUILD_BUILD_HOST=aarch64
+export CROSS_COMPILE=aarch64-linux-gnu-
+export CROSS_COMPILE_ARM32=arm-linux-gnu-
+# export CC_FOR_BUILD=clang-11
+export CLANG_PATH=/usr/bin
+export KBUILD_COMPILER_STRING=$(/usr/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
+
+make O=out whyred-new_defconfig 
