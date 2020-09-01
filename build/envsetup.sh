@@ -34,6 +34,7 @@ echo " ";
 
 export ROOT_SOURCE=`pwd`
 mkdir -p $ROOT_SOURCE/out
+mkdir -p $ROOT_SOURCE/doraemon/Download
 
 alias lunch="source "
 alias doraemon_whyred-defconfig="doraemon/vendor/whyred/doraemon_whyred-defconfig"
