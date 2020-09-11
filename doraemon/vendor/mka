@@ -1,8 +1,0 @@
-cd $ROOT_SOURCE
-
-export KERN_IMG=$ROOT_SOURCE/out/arch/arm64/boot/Image.gz-dtb
-
-time make O=out -j4 ARCH=arm64 CC="/usr/bin/clang" CLANG_TRIPLE="aarch64-linux-gnu-" | tee out/build.log >  /dev/null 2>&1
-rm -rvf $ROOT_SOURCE/doraemon/anykernel3/Image.gz-dtb
-cp -rv $ROOT_SOURCE/out/arch/arm64/boot/Image.gz-dtb $ROOT_SOURCE/doraemon/anykernel3/
-zip -rv9 Doraemon-Kernel-$CAMERA-$(date +"%m""%d"-"%H""%M").zip $ROOT_SOURCE/doraemon/anykernel3/* && mv $ROOT_SOURCE/Doraemon-Kernel-* $ROOT_SOURCE/doraemon/Download/
