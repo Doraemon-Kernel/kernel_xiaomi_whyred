@@ -66,13 +66,7 @@ config ZRAM_DEFAULT_POOL
 	default "z3fold" if ZRAM_DEFAULT_Z3FOLD
 	default "zsmalloc" if ZRAM_DEFAULT_ZSMALLOC
 
-endif
-
 config ZRAM_DEFAULT_COMP_ALGORITHM
         string "Default ZRAM compression algorithm"
         default "lzo-rle"
-
-config ZRAM_SIZE_OVERRIDE
-        int "zram size to set from kernel"
-        range 1 8
-        default 2
+endif
