@@ -66,7 +66,4 @@ config ZRAM_DEFAULT_POOL
 	default "z3fold" if ZRAM_DEFAULT_Z3FOLD
 	default "zsmalloc" if ZRAM_DEFAULT_ZSMALLOC
 
-config ZRAM_DEFAULT_COMP_ALGORITHM
-        string "Default ZRAM compression algorithm"
-        default "lzo-rle"
 endif
